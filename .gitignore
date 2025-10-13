@@ -1,0 +1,21 @@
+# Nix
+result
+result-*
+.direnv/
+
+# Build artifacts
+build/
+*.elf
+*.nds
+*.ds.gba
+*.dol
+*.nro
+*.nso
+*.nacp
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
