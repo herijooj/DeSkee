@@ -86,6 +86,14 @@ int main(void) {
     RotationAngle rotation = ROTATION_0;
     bool split_mode = false;
     int last_second = -1;
+    int drawn_hour = -1;
+    int drawn_minute = -1;
+    int drawn_second = -1;
+    bool clock_face_dirty = true;
+    int calendar_day = -1;
+    int calendar_month = -1;
+    int calendar_year = -1;
+    bool calendar_dirty = true;
     
     // Initialize graphics context
     GraphicsContext gfx_top;
@@ -107,6 +115,8 @@ int main(void) {
     
     // Set positions - these stay constant, rotation handles orientation
     configure_layout(split_mode, rotation, &clock_config, &calendar_config);
+    clock_face_dirty = true;
+    calendar_dirty = true;
     
     // Clear screen initially
     gfx_clear(&gfx_top, clock_light_theme.background);
@@ -130,6 +140,11 @@ int main(void) {
                 bgUpdate();
             }
             last_second = -1; // Force redraw
+            drawn_hour = drawn_minute = drawn_second = -1;
+            clock_face_dirty = true;
+            calendar_dirty = true;
+            calendar_day = calendar_month = calendar_year = -1;
+            calendar_day = calendar_month = calendar_year = -1;
         }
         
         // Rotate clockwise - rotate both modules independently
@@ -147,6 +162,9 @@ int main(void) {
             }
             
             last_second = -1; // Force redraw
+            drawn_hour = drawn_minute = drawn_second = -1;
+            clock_face_dirty = true;
+            calendar_dirty = true;
         }
         
         // Rotate counter-clockwise - rotate both modules independently
@@ -164,6 +182,10 @@ int main(void) {
             }
             
             last_second = -1; // Force redraw
+            drawn_hour = drawn_minute = drawn_second = -1;
+            clock_face_dirty = true;
+            calendar_dirty = true;
+            calendar_day = calendar_month = calendar_year = -1;
         }
         
         // Reset rotation to 0°
@@ -181,6 +203,10 @@ int main(void) {
             }
             
             last_second = -1; // Force redraw
+            drawn_hour = drawn_minute = drawn_second = -1;
+            clock_face_dirty = true;
+            calendar_dirty = true;
+            calendar_day = calendar_month = calendar_year = -1;
         }
 
         // Toggle split mode (clock and calendar on separate screens)
@@ -221,6 +247,10 @@ int main(void) {
             }
 
             last_second = -1;
+            drawn_hour = drawn_minute = drawn_second = -1;
+            clock_face_dirty = true;
+            calendar_dirty = true;
+            calendar_day = calendar_month = calendar_year = -1;
         }
         
         // Update clock and calendar every second
@@ -235,12 +265,40 @@ int main(void) {
             
             GraphicsContext* calendar_ctx = split_mode ? &gfx_bottom : &gfx_top;
 
-            clock_draw(&gfx_top, &clock_config, clock_theme, 
-                      timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
-            calendar_draw(calendar_ctx, &calendar_config, calendar_theme, timeinfo);
+            if (clock_face_dirty) {
+                clock_draw_face(&gfx_top, &clock_config, clock_theme);
+                clock_face_dirty = false;
+            } else if (drawn_second != -1) {
+                clock_erase_hands(&gfx_top, &clock_config, clock_theme,
+                                  drawn_hour, drawn_minute, drawn_second);
+                clock_draw_face_overlay(&gfx_top, &clock_config, clock_theme);
+            }
 
-            if (split_mode && gfx_bottom.framebuffer) {
-                bgUpdate();
+            clock_draw_hands(&gfx_top, &clock_config, clock_theme,
+                             timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+
+            drawn_hour = timeinfo->tm_hour;
+            drawn_minute = timeinfo->tm_min;
+            drawn_second = timeinfo->tm_sec;
+
+            bool calendar_needs_update = calendar_dirty ||
+                                         timeinfo->tm_mday != calendar_day ||
+                                         timeinfo->tm_mon != calendar_month ||
+                                         timeinfo->tm_year != calendar_year;
+
+            if (calendar_needs_update) {
+                if (calendar_ctx->framebuffer) {
+                    calendar_draw(calendar_ctx, &calendar_config, calendar_theme, timeinfo);
+
+                    calendar_dirty = false;
+                    calendar_day = timeinfo->tm_mday;
+                    calendar_month = timeinfo->tm_mon;
+                    calendar_year = timeinfo->tm_year;
+
+                    if (split_mode && gfx_bottom.framebuffer) {
+                        bgUpdate();
+                    }
+                }
             }
         }
     }

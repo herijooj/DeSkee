@@ -36,10 +36,15 @@ void clock_init_dark_theme(ClockTheme* theme);
 
 // Draw clock face (border, numbers, markers)
 void clock_draw_face(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme);
+void clock_draw_face_overlay(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme);
 
 // Draw clock hands for given time
 void clock_draw_hands(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme, 
                       int hour, int minute, int second);
+
+// Erase previously drawn hands by redrawing them with the background color
+void clock_erase_hands(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme,
+                       int hour, int minute, int second);
 
 // Draw complete clock (face + hands)
 void clock_draw(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme,
