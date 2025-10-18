@@ -4,13 +4,12 @@
 #define PI 3.14159265358979323846
 
 // Color definitions
-#define RGB15(r,g,b) ((r)|((g)<<5)|((b)<<10))
-#define COLOR_BLACK RGB15(0, 0, 0)
-#define COLOR_WHITE RGB15(31, 31, 31)
-#define COLOR_GRAY RGB15(20, 20, 20)
-#define COLOR_LIGHT_GRAY RGB15(25, 25, 25)
-#define COLOR_RED RGB15(31, 10, 15)
-#define COLOR_CYAN RGB15(10, 25, 31)
+#define COLOR_BLACK ARGB16(1, 0, 0, 0)
+#define COLOR_WHITE ARGB16(1, 31, 31, 31)
+#define COLOR_GRAY ARGB16(1, 20, 20, 20)
+#define COLOR_LIGHT_GRAY ARGB16(1, 25, 25, 25)
+#define COLOR_RED ARGB16(1, 31, 10, 15)
+#define COLOR_CYAN ARGB16(1, 10, 25, 31)
 
 // Helper to draw a number at position
 static void draw_number(GraphicsContext* gfx, int x, int y, int num, u16 color) {

@@ -42,7 +42,22 @@ static void configure_layout(bool split_mode, RotationAngle rotation,
                              ClockConfig* clock_config, CalendarConfig* calendar_config) {
     if (split_mode) {
         clock_init_config(clock_config, 128, 96, 70);
-        calendar_init_config(calendar_config, 78, 20, 13);
+
+        const int cell_size = 13;
+        const int calendar_total_width = 7 * cell_size + 8;
+        const int calendar_total_height = 22 + 7 * cell_size;
+
+        int offset_x = (256 - calendar_total_width) / 2;
+        int offset_y = (192 - calendar_total_height) / 2;
+
+        if (calendar_total_width & 1) {
+            offset_x += 1;
+        }
+        if (calendar_total_height & 1) {
+            offset_y += 1;
+        }
+
+        calendar_init_config(calendar_config, offset_x, offset_y, cell_size);
     } else {
         clock_init_config(clock_config, 64, 96, 55);
         calendar_init_config(calendar_config, 135, 41, 13);
