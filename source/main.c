@@ -4,39 +4,9 @@
 #include "graphics.h"
 #include "clock.h"
 #include "calendar.h"
+#include "visualizer.h"
 
-static PrintConsole bottom_console;
-static bool console_active = true;
-static int split_bg_id = -1;
-
-static void print_instructions(void) {
-    consoleSelect(&bottom_console);
-    consoleClear();
-    iprintf("\n\n  Clock & Calendar\n");
-    iprintf("  ---------------\n\n");
-    iprintf("  A: Toggle Theme\n");
-    iprintf("  B: Rotate Clockwise\n");
-    iprintf("  X: Rotate Counter-CW\n");
-    iprintf("  Y: Reset Rotation\n");
-    iprintf("  L: Toggle Split Mode\n");
-    iprintf("  START: Exit\n");
-}
-
-static void enable_bottom_console(void) {
-    vramSetBankC(VRAM_C_SUB_BG);
-    videoSetModeSub(MODE_0_2D);
-    consoleInit(&bottom_console, 3, BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
-    consoleSelect(&bottom_console);
-    print_instructions();
-    console_active = true;
-}
-
-static void disable_bottom_console(void) {
-    consoleClear();
-    console_active = false;
-    // Switch to the default console (top) to avoid writes to sub engine
-    consoleSelect(NULL);
-}
+static int bottom_bg_id = -1;
 
 static void configure_layout(bool split_mode, RotationAngle rotation,
                              ClockConfig* clock_config, CalendarConfig* calendar_config) {
@@ -78,8 +48,13 @@ int main(void) {
     vramSetBankA(VRAM_A_LCD);
     u16* framebuffer = (u16*)VRAM_A;
     
-    // Set up bottom screen for controls (combined mode default)
-    enable_bottom_console();
+    // Set up bottom screen for visualizer/calendar rendering
+    vramSetBankC(VRAM_C_SUB_BG);
+    videoSetModeSub(MODE_5_2D);
+    bottom_bg_id = bgInitSub(2, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
+    bgSetPriority(bottom_bg_id, 0);
+    bgShow(bottom_bg_id);
+    u16* bottom_framebuffer = bgGetGfxPtr(bottom_bg_id);
     
     // Application state
     Theme theme = THEME_LIGHT;
@@ -99,7 +74,10 @@ int main(void) {
     GraphicsContext gfx_top;
     GraphicsContext gfx_bottom;
     gfx_init(&gfx_top, framebuffer, 256, 192, ROTATION_0);
-    gfx_init(&gfx_bottom, NULL, 256, 192, ROTATION_0);
+    gfx_init(&gfx_bottom, bottom_framebuffer, 256, 192, ROTATION_0);
+
+    SoundVisualizer visualizer;
+    visualizer_init(&visualizer, &gfx_bottom);
     
     // Initialize clock config and themes
     ClockConfig clock_config;
@@ -120,6 +98,8 @@ int main(void) {
     
     // Clear screen initially
     gfx_clear(&gfx_top, clock_light_theme.background);
+    visualizer_set_theme(&visualizer, VISUALIZER_THEME_LIGHT);
+    visualizer_start(&visualizer);
     
     while (1) {
         swiWaitForVBlank();
@@ -138,6 +118,10 @@ int main(void) {
             if (split_mode && gfx_bottom.framebuffer) {
                 gfx_clear(&gfx_bottom, clock_theme->background);
                 bgUpdate();
+            }
+            visualizer_set_theme(&visualizer, theme == THEME_LIGHT ? VISUALIZER_THEME_LIGHT : VISUALIZER_THEME_DARK);
+            if (!split_mode) {
+                visualizer_force_redraw(&visualizer);
             }
             last_second = -1; // Force redraw
             drawn_hour = drawn_minute = drawn_second = -1;
@@ -212,38 +196,23 @@ int main(void) {
         // Toggle split mode (clock and calendar on separate screens)
         if (keys & KEY_L) {
             split_mode = !split_mode;
+            ClockTheme* clock_theme = (theme == THEME_LIGHT) ? &clock_light_theme : &clock_dark_theme;
             if (split_mode) {
-                if (console_active) {
-                    disable_bottom_console();
-                }
-
-                vramSetBankC(VRAM_C_SUB_BG);
-                videoSetModeSub(MODE_5_2D);
-
-                split_bg_id = bgInitSub(2, BgType_Bmp16, BgSize_B16_256x256, 0, 0);
-                bgSetPriority(split_bg_id, 0);
-                bgShow(split_bg_id);
-
-                u16* bottom_fb = bgGetGfxPtr(split_bg_id);
-                gfx_init(&gfx_bottom, bottom_fb, 256, 192, ROTATION_0);
+                visualizer_stop(&visualizer);
+                gfx_clear(&gfx_bottom, clock_theme->background);
+                bgUpdate();
             } else {
-                if (split_bg_id >= 0) {
-                    bgHide(split_bg_id);
-                    split_bg_id = -1;
-                }
-
-                gfx_init(&gfx_bottom, NULL, 256, 192, ROTATION_0);
-                videoSetModeSub(MODE_0_2D);
-                enable_bottom_console();
+                visualizer_start(&visualizer);
             }
 
             configure_layout(split_mode, rotation, &clock_config, &calendar_config);
 
-            ClockTheme* clock_theme = (theme == THEME_LIGHT) ? &clock_light_theme : &clock_dark_theme;
             gfx_clear(&gfx_top, clock_theme->background);
             if (split_mode && gfx_bottom.framebuffer) {
                 gfx_clear(&gfx_bottom, clock_theme->background);
                 bgUpdate();
+            } else if (!split_mode) {
+                visualizer_force_redraw(&visualizer);
             }
 
             last_second = -1;
@@ -301,7 +270,12 @@ int main(void) {
                 }
             }
         }
+
+        if (!split_mode) {
+            visualizer_update(&visualizer);
+        }
     }
     
+    visualizer_stop(&visualizer);
     return 0;
 }

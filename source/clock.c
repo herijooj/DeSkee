@@ -132,7 +132,6 @@ void clock_draw_face(GraphicsContext* gfx, const ClockConfig* config, const Cloc
     push_clock_transform(gfx, config, &state);
 
     gfx_draw_filled_rect(gfx, cx - r - 2, cy - r - 2, r * 2 + 4, r * 2 + 4, theme->background);
-    gfx_draw_rect(gfx, cx - r, cy - r, r * 2, r * 2, 2, theme->border);
     draw_numbers(gfx, config, theme);
     draw_markers(gfx, config, theme);
 
@@ -140,14 +139,10 @@ void clock_draw_face(GraphicsContext* gfx, const ClockConfig* config, const Cloc
 }
 
 void clock_draw_face_overlay(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme) {
-    int cx = config->center_x;
-    int cy = config->center_y;
-    int r = config->radius;
-
     TransformState state;
     push_clock_transform(gfx, config, &state);
 
-    gfx_draw_rect(gfx, cx - r, cy - r, r * 2, r * 2, 2, theme->border);
+    /* square border removed intentionally */
     draw_numbers(gfx, config, theme);
     draw_markers(gfx, config, theme);
 
