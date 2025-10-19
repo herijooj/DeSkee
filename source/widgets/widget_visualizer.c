@@ -40,8 +40,12 @@ static size_t align32(size_t value) {
 static void visualizer_calculate_layout(SoundVisualizer* viz) {
     if (!viz || !viz->ctx) return;
 
-    int width = viz->ctx->width;
-    int height = viz->ctx->height;
+    int width = viz->bounds_width > 0 ? viz->bounds_width : viz->ctx->width;
+    int height = viz->bounds_height > 0 ? viz->bounds_height : viz->ctx->height;
+    if (width <= 0 || height <= 0) {
+        viz->layout_dirty = false;
+        return;
+    }
 
     viz->spacing = 6;
     int total_spacing = viz->spacing * (viz->num_bars + 1);
@@ -57,9 +61,9 @@ static void visualizer_calculate_layout(SoundVisualizer* viz) {
 
     int used_width = viz->num_bars * viz->bar_width + total_spacing;
     int leftover = width - used_width;
-    viz->origin_x = viz->spacing + leftover / 2;
+    viz->origin_x = viz->bounds_x + viz->spacing + leftover / 2;
 
-    viz->baseline = height - 1;
+    viz->baseline = viz->bounds_y + height - 1;
     viz->max_height = height - 6;
     if (viz->max_height < 10) {
         viz->max_height = height;
@@ -77,6 +81,7 @@ static void visualizer_build_palette(SoundVisualizer* viz) {
         u16 start = RGB15(8, 10, 31);
         u16 end = RGB15(31, 10, 20);
         viz->baseline_color = pack_color(6, 8, 16);
+        viz->border_color = pack_color(10, 12, 20);
 
         for (int i = 0; i < viz->num_bars; ++i) {
             viz->bar_colors[i] = lerp_color(start, end, i, viz->num_bars - 1);
@@ -87,10 +92,11 @@ static void visualizer_build_palette(SoundVisualizer* viz) {
             viz->highlight_colors[i] = pack_color(r, g, b);
         }
     } else {
-        viz->background_color = pack_color(24, 25, 30);
+        viz->background_color = pack_color(31, 31, 31);
         u16 start = RGB15(6, 16, 31);
         u16 end = RGB15(20, 31, 17);
         viz->baseline_color = pack_color(18, 20, 27);
+        viz->border_color = pack_color(0, 0, 0);
 
         for (int i = 0; i < viz->num_bars; ++i) {
             viz->bar_colors[i] = lerp_color(start, end, i, viz->num_bars - 1);
@@ -107,17 +113,32 @@ static void visualizer_build_palette(SoundVisualizer* viz) {
 
 static void visualizer_clear_frame(SoundVisualizer* viz) {
     if (!viz || !viz->ctx || !viz->ctx->framebuffer) return;
-    gfx_clear(viz->ctx, viz->background_color);
+    int w = viz->bounds_width > 0 ? viz->bounds_width : viz->ctx->width;
+    int h = viz->bounds_height > 0 ? viz->bounds_height : viz->ctx->height;
+    int x = viz->bounds_x;
+    int y = viz->bounds_y;
+    gfx_draw_filled_rect(viz->ctx, x, y, w, h, viz->background_color);
+    gfx_draw_rect(viz->ctx, x, y, w, h, 1, viz->border_color);
     bgUpdate();
 }
 
 static void visualizer_draw(SoundVisualizer* viz) {
     if (!viz || !viz->ctx || !viz->ctx->framebuffer) return;
 
-    gfx_clear(viz->ctx, viz->background_color);
+    int width = viz->bounds_width > 0 ? viz->bounds_width : viz->ctx->width;
+    int height = viz->bounds_height > 0 ? viz->bounds_height : viz->ctx->height;
+    int x0 = viz->bounds_x;
+    int y0 = viz->bounds_y;
 
-    gfx_draw_filled_rect(viz->ctx, 0, CLAMP(viz->baseline - 1, 0, viz->ctx->height - 1),
-                         viz->ctx->width, 2, viz->baseline_color);
+    gfx_draw_filled_rect(viz->ctx, x0, y0, width, height, viz->background_color);
+
+    int baseline_top = viz->baseline - 1;
+    if (baseline_top < y0) baseline_top = y0;
+    int baseline_height = y0 + height - baseline_top;
+    if (baseline_height > 2) baseline_height = 2;
+    if (baseline_height > 0) {
+        gfx_draw_filled_rect(viz->ctx, x0, baseline_top, width, baseline_height, viz->baseline_color);
+    }
 
     for (int i = 0; i < viz->num_bars; ++i) {
         int height = viz->current_heights[i];
@@ -125,9 +146,10 @@ static void visualizer_draw(SoundVisualizer* viz) {
 
         int x = viz->origin_x + i * (viz->bar_width + viz->spacing);
         int y = viz->baseline - height + 1;
-        if (y < 0) {
-            height += y;
-            y = 0;
+        if (y < y0) {
+            int delta = y0 - y;
+            height -= delta;
+            y = y0;
         }
 
         gfx_draw_filled_rect(viz->ctx, x, y, viz->bar_width, height, viz->bar_colors[i]);
@@ -136,6 +158,10 @@ static void visualizer_draw(SoundVisualizer* viz) {
         if (highlight_height > 0) {
             gfx_draw_filled_rect(viz->ctx, x, y, viz->bar_width, highlight_height, viz->highlight_colors[i]);
         }
+    }
+
+    if (width > 0 && height > 0) {
+        gfx_draw_rect(viz->ctx, x0, y0, width, height, 1, viz->border_color);
     }
 
     bgUpdate();
@@ -204,6 +230,12 @@ static void visualizer_init(SoundVisualizer* viz, GraphicsContext* ctx) {
 
     memset(viz, 0, sizeof(*viz));
     viz->ctx = ctx;
+    if (ctx) {
+        viz->bounds_x = 0;
+        viz->bounds_y = 0;
+        viz->bounds_width = ctx->width;
+        viz->bounds_height = ctx->height;
+    }
     viz->num_bars = VISUALIZER_MAX_BARS;
     viz->max_sample = 2048;
     viz->sample_rate = 8192;
@@ -220,6 +252,14 @@ static void visualizer_init(SoundVisualizer* viz, GraphicsContext* ctx) {
 static void visualizer_set_context(SoundVisualizer* viz, GraphicsContext* ctx) {
     if (!viz) return;
     viz->ctx = ctx;
+    if (ctx) {
+        if (viz->bounds_width <= 0 || viz->bounds_height <= 0) {
+            viz->bounds_x = 0;
+            viz->bounds_y = 0;
+            viz->bounds_width = ctx->width;
+            viz->bounds_height = ctx->height;
+        }
+    }
     viz->layout_dirty = true;
     viz->force_redraw = true;
 }
@@ -398,6 +438,17 @@ static void visualizer_widget_update(Widget* widget) {
     if (!state || !state->initialized || !state->running) return;
 
     visualizer_update(&state->visualizer);
+}
+
+void widget_visualizer_set_bounds(VisualizerWidgetState* state, int x, int y, int width, int height) {
+    if (!state) return;
+    SoundVisualizer* viz = &state->visualizer;
+    viz->bounds_x = x;
+    viz->bounds_y = y;
+    viz->bounds_width = width;
+    viz->bounds_height = height;
+    viz->layout_dirty = true;
+    viz->force_redraw = true;
 }
 
 static const WidgetOps VISUALIZER_WIDGET_OPS = {

@@ -7,7 +7,7 @@ This is good for you to prop up your DS and glance at the time and date. your co
 ![Example 1](img/example1.jpeg)
 ![Example 2](img/example2.jpeg)
 
-# The Vision
+## The Vision
 
 You kinda have to see the vision. My vision is to have a clock, a calendar. maybe a pomodoro timer, a to-do list, a battery indicator and some small glanceable things. Kinda like the ds-lite home screen, i took inspiration from that.
 

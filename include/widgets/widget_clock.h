@@ -34,9 +34,14 @@ typedef struct {
     int drawn_minute;
     int drawn_second;
     bool face_dirty;
+    int bounds_x;
+    int bounds_y;
+    int bounds_width;
+    int bounds_height;
 } ClockWidgetState;
 
 void widget_clock_init(Widget* widget, ClockWidgetState* state);
 ClockTheme* widget_clock_current_theme(ClockWidgetState* state, WidgetTheme theme);
+void widget_clock_set_bounds(ClockWidgetState* state, int x, int y, int width, int height);
 
 #endif // WIDGET_CLOCK_H

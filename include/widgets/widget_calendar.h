@@ -35,8 +35,13 @@ typedef struct {
     int cached_month;
     int cached_year;
     bool dirty;
+    int bounds_x;
+    int bounds_y;
+    int bounds_width;
+    int bounds_height;
 } CalendarWidgetState;
 
 void widget_calendar_init(Widget* widget, CalendarWidgetState* state);
+void widget_calendar_set_bounds(CalendarWidgetState* state, int x, int y, int width, int height);
 
 #endif // WIDGET_CALENDAR_H

@@ -18,15 +18,6 @@ typedef struct {
     int pivot_y;
 } TransformState;
 
-static void clock_init_config(ClockConfig* config, int center_x, int center_y, int radius) {
-    config->center_x = center_x;
-    config->center_y = center_y;
-    config->radius = radius;
-    config->show_numbers = true;
-    config->show_markers = true;
-    config->rotation = ROTATION_0;
-}
-
 static void clock_init_light_theme(ClockTheme* theme) {
     theme->background = COLOR_WHITE;
     theme->foreground = COLOR_BLACK;
@@ -90,6 +81,63 @@ static void draw_number(GraphicsContext* gfx, int x, int y, int num, u16 color) 
     }
 }
 
+static void clock_draw_bounds(GraphicsContext* gfx, const ClockWidgetState* state,
+                              u16 fill_color, u16 border_color, bool draw_fill, bool draw_border) {
+    if (!gfx || !state) return;
+    if (!draw_fill && !draw_border) return;
+    if (state->bounds_width <= 0 || state->bounds_height <= 0) return;
+
+    RotationAngle saved_rotation = gfx->rotation;
+    int saved_px = gfx->pivot_x;
+    int saved_py = gfx->pivot_y;
+
+    gfx->rotation = state->config.rotation;
+    gfx->pivot_x = state->bounds_x + state->bounds_width / 2;
+    gfx->pivot_y = state->bounds_y + state->bounds_height / 2;
+
+    if (draw_fill) {
+        gfx_draw_filled_rect(gfx, state->bounds_x, state->bounds_y,
+                             state->bounds_width, state->bounds_height, fill_color);
+    }
+
+    if (draw_border) {
+        gfx_draw_rect(gfx, state->bounds_x, state->bounds_y,
+                      state->bounds_width, state->bounds_height, 1, border_color);
+    }
+
+    gfx->rotation = saved_rotation;
+    gfx->pivot_x = saved_px;
+    gfx->pivot_y = saved_py;
+}
+
+static void draw_number_string(GraphicsContext* gfx, int center_x, int y, const char* text, u16 color) {
+    if (!text) return;
+
+    int length = 0;
+    for (const char* ptr = text; *ptr; ++ptr) {
+        if (*ptr >= '0' && *ptr <= '9') {
+            length++;
+        }
+    }
+
+    if (length == 0) {
+        return;
+    }
+
+    const int digit_width = 6;
+    const int spacing = 1;
+    int total_width = length * digit_width + (length - 1) * spacing;
+    int start_x = center_x - total_width / 2;
+    int x = start_x;
+
+    for (const char* ptr = text; *ptr; ++ptr) {
+        if (*ptr < '0' || *ptr > '9') continue;
+        int digit = *ptr - '0';
+        draw_number(gfx, x, y, digit, color);
+        x += digit_width + spacing;
+    }
+}
+
 static void draw_numbers(GraphicsContext* gfx, const ClockConfig* config, const ClockTheme* theme) {
     if (!config->show_numbers) return;
 
@@ -97,8 +145,7 @@ static void draw_numbers(GraphicsContext* gfx, const ClockConfig* config, const 
     int cy = config->center_y;
     int r = config->radius;
 
-    draw_number(gfx, cx - 3, cy - r + 8, 1, theme->foreground);
-    draw_number(gfx, cx + 4, cy - r + 8, 2, theme->foreground);
+    draw_number_string(gfx, cx, cy - r + 8, "12", theme->foreground);
     draw_number(gfx, cx + r - 14, cy - 5, 3, theme->foreground);
     draw_number(gfx, cx - 3, cy + r - 18, 6, theme->foreground);
     draw_number(gfx, cx - r + 8, cy - 5, 9, theme->foreground);
@@ -225,14 +272,37 @@ static void clock_widget_reset(ClockWidgetState* state) {
     state->face_dirty = true;
 }
 
-static void clock_widget_configure_layout(ClockWidgetState* state, bool split_mode) {
+void widget_clock_set_bounds(ClockWidgetState* state, int x, int y, int width, int height) {
     if (!state) return;
 
-    if (split_mode) {
-        clock_init_config(&state->config, 128, 96, 70);
-    } else {
-        clock_init_config(&state->config, 64, 96, 55);
+    state->bounds_x = x;
+    state->bounds_y = y;
+    state->bounds_width = width;
+    state->bounds_height = height;
+
+    int cx = x + width / 2;
+    int cy = y + height / 2;
+    int min_dim = width < height ? width : height;
+    int half = min_dim / 2;
+    int radius = half - 4;
+    if (radius < 16) {
+        radius = half - 2;
     }
+    if (radius < 10) {
+        radius = 10;
+    }
+    int max_radius = half - 2;
+    if (max_radius < 10) {
+        max_radius = 10;
+    }
+    if (radius > max_radius) {
+        radius = max_radius;
+    }
+
+    state->config.center_x = cx;
+    state->config.center_y = cy;
+    state->config.radius = radius;
+    state->face_dirty = true;
 }
 
 ClockTheme* widget_clock_current_theme(ClockWidgetState* state, WidgetTheme theme) {
@@ -266,7 +336,7 @@ static void clock_widget_rotation_changed(Widget* widget, RotationAngle rotation
 
 static void clock_widget_layout_changed(Widget* widget, bool split_mode) {
     ClockWidgetState* state = widget_state(widget);
-    clock_widget_configure_layout(state, split_mode);
+    (void)split_mode;
     state->config.rotation = widget->rotation;
     clock_widget_reset(state);
 }
@@ -286,6 +356,7 @@ static void clock_widget_time_tick(Widget* widget, const struct tm* timeinfo) {
     if (!theme) return;
 
     if (state->face_dirty) {
+        clock_draw_bounds(ctx, state, theme->background, theme->border, true, false);
         clock_draw_face(ctx, &state->config, theme);
         state->face_dirty = false;
     } else if (state->drawn_second != -1) {
@@ -296,6 +367,8 @@ static void clock_widget_time_tick(Widget* widget, const struct tm* timeinfo) {
 
     clock_draw_hands(ctx, &state->config, theme,
                      timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+
+    clock_draw_bounds(ctx, state, theme->background, theme->border, false, true);
 
     state->drawn_hour = timeinfo->tm_hour;
     state->drawn_minute = timeinfo->tm_min;
@@ -316,7 +389,16 @@ static const WidgetOps CLOCK_WIDGET_OPS = {
 void widget_clock_init(Widget* widget, ClockWidgetState* state) {
     if (!widget || !state) return;
 
-    clock_widget_configure_layout(state, false);
+    state->config.center_x = 128;
+    state->config.center_y = 96;
+    state->config.radius = 60;
+    state->config.show_numbers = true;
+    state->config.show_markers = true;
+    state->config.rotation = ROTATION_0;
+    state->bounds_x = 0;
+    state->bounds_y = 0;
+    state->bounds_width = 0;
+    state->bounds_height = 0;
     clock_init_light_theme(&state->light_theme);
     clock_init_dark_theme(&state->dark_theme);
     clock_widget_reset(state);

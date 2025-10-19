@@ -18,6 +18,10 @@ typedef struct {
     bool visible;
     bool force_redraw;
     bool layout_dirty;
+    int bounds_x;
+    int bounds_y;
+    int bounds_width;
+    int bounds_height;
     int num_bars;
     int spacing;
     int bar_width;
@@ -36,6 +40,7 @@ typedef struct {
     u16 highlight_colors[VISUALIZER_MAX_BARS];
     u16 background_color;
     u16 baseline_color;
+    u16 border_color;
     VisualizerTheme theme;
 } SoundVisualizer;
 
@@ -46,5 +51,6 @@ typedef struct {
 } VisualizerWidgetState;
 
 void widget_visualizer_init(Widget* widget, VisualizerWidgetState* state);
+void widget_visualizer_set_bounds(VisualizerWidgetState* state, int x, int y, int width, int height);
 
 #endif // WIDGET_VISUALIZER_H
