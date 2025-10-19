@@ -45,7 +45,7 @@
             echo "Building..."
             if make; then
               echo "Launching DeSmuME..."
-              nix run nixpkgs#desmume -- dsi-app.nds &
+              nix run nixpkgs#desmume -- DeSkee.nds &
             fi
           }
           export -f run
@@ -54,7 +54,7 @@
             echo "Building..."
             if make; then
               echo "Launching melonDS..."
-              nix run nixpkgs#melonDS -- dsi-app.nds &
+              nix run nixpkgs#melonDS -- DeSkee.nds &
             fi
           }
           export -f run-melon
@@ -63,14 +63,14 @@
 
       # Package build configuration for NDS
       packages.default = pkgs.devkitNix.stdenvARM.mkDerivation {
-        name = "dsi-example";
+        name = "DeSkee";
         src = ./.;
 
-        makeFlags = ["TARGET=dsi-app"];
+        makeFlags = ["TARGET=DeSkee"];
         
         installPhase = ''
           mkdir -p $out
-          cp dsi-app.nds $out
+          cp DeSkee.nds $out
         '';
       };
     });

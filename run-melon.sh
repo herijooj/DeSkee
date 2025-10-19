@@ -10,19 +10,19 @@ echo ""
 if [ -z "$IN_NIX_SHELL" ]; then
     echo "Entering nix development environment..."
     nix develop --command bash -c '
-        echo "Building clock_app.nds..."
+        echo "Building DeSkee.nds..."
         if make; then
             echo "Launching melonDS..."
-            nix run nixpkgs#melonDS -- clock_app.nds &
+            nix run nixpkgs#melonDS -- DeSkee.nds &
         else
             exit 1
         fi
     '
 else
-    echo "Building clock_app.nds..."
+    echo "Building DeSkee.nds..."
     if make; then
         echo "Launching melonDS..."
-        nix run nixpkgs#melonDS -- clock_app.nds &
+        nix run nixpkgs#melonDS -- DeSkee.nds &
     else
         exit 1
     fi

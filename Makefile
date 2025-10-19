@@ -4,9 +4,9 @@ endif
 
 #---------------------------------------------------------------------------------
 # These set the information text in the nds file (optional)
-#GAME_TITLE     := Clock App
-#GAME_SUBTITLE1 := built with devkitARM
-#GAME_SUBTITLE2 := https://github.com/devkitPro
+GAME_TITLE     := DeSkee
+GAME_SUBTITLE1 := Put it on your Desk.
+GAME_SUBTITLE2 := https://github.com/herijooj
 #---------------------------------------------------------------------------------
 
 include $(DEVKITARM)/ds_rules
@@ -14,7 +14,7 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 # Project configuration
 #---------------------------------------------------------------------------------
-TARGET   := clock_app
+TARGET   := DeSkee
 BUILD    := build
 SOURCES  := source source/widgets
 INCLUDES := include source source/widgets
