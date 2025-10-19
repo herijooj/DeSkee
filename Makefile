@@ -16,8 +16,8 @@ include $(DEVKITARM)/ds_rules
 #---------------------------------------------------------------------------------
 TARGET   := clock_app
 BUILD    := build
-SOURCES  := source
-INCLUDES := include
+SOURCES  := source source/widgets
+INCLUDES := include source source/widgets
 DATA     :=
 GRAPHICS := graphics
 AUDIO    :=

@@ -1,14 +1,9 @@
-#ifndef SOUND_VISUALIZER_H
-#define SOUND_VISUALIZER_H
+#ifndef WIDGET_VISUALIZER_H
+#define WIDGET_VISUALIZER_H
 
-#include <nds.h>
-#include <stddef.h>
 #include <stdbool.h>
-#include "graphics.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "widget.h"
 
 typedef enum {
     VISUALIZER_THEME_LIGHT = 0,
@@ -44,17 +39,12 @@ typedef struct {
     VisualizerTheme theme;
 } SoundVisualizer;
 
-void visualizer_init(SoundVisualizer* viz, GraphicsContext* ctx);
-void visualizer_set_context(SoundVisualizer* viz, GraphicsContext* ctx);
-void visualizer_set_theme(SoundVisualizer* viz, VisualizerTheme theme);
-void visualizer_start(SoundVisualizer* viz);
-void visualizer_stop(SoundVisualizer* viz);
-void visualizer_force_redraw(SoundVisualizer* viz);
-void visualizer_invalidate_layout(SoundVisualizer* viz);
-void visualizer_update(SoundVisualizer* viz);
+typedef struct {
+    SoundVisualizer visualizer;
+    bool initialized;
+    bool running;
+} VisualizerWidgetState;
 
-#ifdef __cplusplus
-}
-#endif
+void widget_visualizer_init(Widget* widget, VisualizerWidgetState* state);
 
-#endif // SOUND_VISUALIZER_H
+#endif // WIDGET_VISUALIZER_H
